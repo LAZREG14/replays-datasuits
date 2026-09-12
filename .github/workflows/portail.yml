@@ -3,10 +3,6 @@ name: Portail replays
 on:
   workflow_dispatch:             # déclenchement manuel uniquement (bouton Run workflow)
     inputs:
-      max_replays:
-        description: "Nombre de replays « À traiter » à publier"
-        default: "3"
-        required: true
       dry_run:
         description: "À blanc : tout lire, ne rien écrire"
         type: boolean
@@ -19,7 +15,7 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -27,21 +23,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Installer ffmpeg et boto3
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg > /dev/null
-          pip install -q boto3
-          ffmpeg -version | head -1
-
-      - name: Synchroniser monday → Supabase → R2
+      - name: Synchroniser monday → Supabase
         env:
           MONDAY_TOKEN:         ${{ secrets.MONDAY_TOKEN }}
           SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          R2_ACCESS_KEY_ID:     ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_ENDPOINT:          ${{ secrets.R2_ENDPOINT }}
-          MAX_REPLAYS:          ${{ github.event.inputs.max_replays || '3' }}
           DRY_RUN:              ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
         run: python sync_portail.py
