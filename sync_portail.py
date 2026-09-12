@@ -15,23 +15,22 @@ Ce que fait le robot, dans l'ordre :
    - Statut « Abandon » → accès coupé (compte banni, actif = false).
 
 2. REPLAYS  (board monday « Replays CV »)
-   - Statut « À traiter » → téléchargement du lien SharePoint, compression 720p,
-     dépôt dans le coffre R2, publication dans Supabase, statut « Publié ».
-     Quelques replays par exécution (MAX_REPLAYS), choisis au lancement.
+   Les vidéos restent sur SharePoint (lien « Toute personne », téléchargement
+   bloqué par Microsoft). Le robot ne copie rien : il publie la LISTE.
+   - Statut « À traiter » → vérification du lien, fiche Supabase, statut « Publié ».
+   - Statut « Publié »    → la fiche est resynchronisée (titre, module, date…).
    - Statut « Archivé » (posé à la main) ou date de purge dépassée
-     → dépublication + suppression du fichier dans R2.
+     → la fiche est dépubliée, le replay disparaît du portail.
 
 3. Le robot se lance à la main (bouton Run workflow). Pense à le lancer au
    moins une fois par semaine : chaque exécution « réveille » Supabase, dont
    le projet gratuit se met en pause après 7 jours sans activité.
 
 Secrets attendus (GitHub → Settings → Secrets → Actions) :
-  MONDAY_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_KEY,
-  R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT
+  MONDAY_TOKEN, SUPABASE_URL, SUPABASE_SERVICE_KEY
 
 Options (variables d'environnement, posées par le workflow) :
-  MAX_REPLAYS  nombre de replays « À traiter » traités par exécution (défaut 3)
-  DRY_RUN      "1" = tout lire, ne rien écrire (ni monday, ni Supabase, ni R2)
+  DRY_RUN      "1" = tout lire, ne rien écrire (ni monday, ni Supabase)
 """
 
 import datetime as dt
@@ -39,10 +38,7 @@ import json
 import os
 import re
 import secrets
-import shutil
-import subprocess
 import sys
-import tempfile
 import unicodedata
 import urllib.error
 import urllib.parse
@@ -56,17 +52,10 @@ MONDAY_TOKEN = os.environ.get("MONDAY_TOKEN", "").strip()
 SUPABASE_URL = re.sub(r"/(rest|auth|storage)/v1/?$", "",
                       os.environ.get("SUPABASE_URL", "").strip().rstrip("/")).rstrip("/")
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
-R2_ACCESS_KEY = os.environ.get("R2_ACCESS_KEY_ID", "").strip()
-R2_SECRET_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "").strip()
-R2_ENDPOINT = os.environ.get("R2_ENDPOINT", "").strip()
-R2_BUCKET = "replays-datasuits"
-
-MAX_REPLAYS = int(os.environ.get("MAX_REPLAYS", "3") or 3)
 DRY_RUN = os.environ.get("DRY_RUN", "0").strip() == "1"
 
 LOGIN_DOMAIN = "datasuits.fr"
 CONSERVATION_MOIS = 12          # purge = date de la CV + 12 mois
-HAUTEUR_MAX = 720               # compression : 720p maximum
 
 # Board « Suivi des apprenants DA »
 B_APP = 1942427259
@@ -323,204 +312,92 @@ def sync_apprenants():
 #  2) REPLAYS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def r2_client():
-    import boto3  # installé par le workflow
-    return boto3.client("s3", endpoint_url=R2_ENDPOINT,
-                        aws_access_key_id=R2_ACCESS_KEY,
-                        aws_secret_access_key=R2_SECRET_KEY, region_name="auto")
+def nettoyer_lien(lien):
+    """Lien de partage SharePoint : on retire le traceur nav=… et on vérifie la forme."""
+    lien = re.sub(r"[&?]nav=[^&]*", "", (lien or "").strip())
+    if not re.match(r"https://[a-z0-9-]+-my\.sharepoint\.com/:[a-z]:/g/personal/", lien):
+        raise RuntimeError(
+            "le lien doit être un lien de PARTAGE SharePoint (bouton Partager → Copier le lien, "
+            "forme https://…-my.sharepoint.com/:v:/g/personal/…), pas l'adresse de la barre du navigateur.")
+    return lien
 
 
-def _texte_page(page):
-    page = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", page, flags=re.S | re.I)
-    texte = re.sub(r"<[^>]+>", " ", page)
-    texte = re.sub(r"\s+", " ", texte).strip()
-    return texte[:300]
+def date_purge(date_cv):
+    if not date_cv:
+        return None
+    d = dt.date.fromisoformat(date_cv)
+    mois = d.month - 1 + CONSERVATION_MOIS
+    return d.replace(year=d.year + mois // 12, month=mois % 12 + 1, day=1)
 
 
-def telecharger(lien, dest):
-    """Télécharge la vidéo depuis un lien de partage SharePoint « Toute personne »."""
-    import http.cookiejar
-    ouvreur = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
-    ouvreur.addheaders = [("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"),
-                          ("Accept", "*/*")]
-    lien = re.sub(r"[&?]nav=[^&]*", "", lien.strip())
-    erreurs = []
-
-    def essayer(url, etiquette):
-        with ouvreur.open(url, timeout=60) as r:
-            ctype = r.headers.get("Content-Type", "")
-            if "text/html" in ctype:
-                page = r.read(60000).decode("utf-8", "replace")
-                erreurs.append(f"[{etiquette}] {r.geturl()[:70]}… → « {_texte_page(page)[:160]} »")
-                return None, r.geturl()
-            with open(dest, "wb") as f:
-                shutil.copyfileobj(r, f, length=1024 * 1024)
-            return os.path.getsize(dest), r.geturl()
-
-    # 1) Ouvrir le lien de partage tel quel : pose le cookie de session anonyme
-    #    et révèle le chemin du fichier (paramètre id= de stream.aspx / onedrive.aspx)
-    chemin = None
-    try:
-        with ouvreur.open(lien, timeout=60) as r:
-            fin = r.geturl()
-            page = r.read(60000).decode("utf-8", "replace") if "text/html" in r.headers.get("Content-Type", "") else ""
-        m = re.search(r"[?&]id=([^&]+)", fin) or re.search(r"[?&]id=([^&\"']+)", page)
-        if m:
-            chemin = urllib.parse.unquote(m.group(1))
-        log(f"     session : {fin[:100]}…")
-    except urllib.error.HTTPError as e:
-        erreurs.append(f"[ouverture] HTTP {e.code}")
-    except Exception as e:
-        erreurs.append(f"[ouverture] {type(e).__name__} : {e}")
-
-    tentatives = [(lien + ("&" if "?" in lien else "?") + "download=1", "download=1")]
-    m = re.match(r"(https://[^/]+/)(?::[a-z]:/g/)?(personal/[^/]+)/([A-Za-z0-9_-]{20,})", lien)
-    racine, perso = (m.group(1), m.group(2)) if m else (None, None)
-    if m:
-        tentatives.append((f"{racine}{perso}/_layouts/15/download.aspx?share={m.group(3)}", "share="))
-    if chemin and racine:
-        tentatives.append((f"{racine}{perso}/_layouts/15/download.aspx?SourceUrl="
-                           f"{urllib.parse.quote(chemin)}", "SourceUrl="))
-        tentatives.append((f"{racine.rstrip('/')}{urllib.parse.quote(chemin)}", "chemin direct"))
-
-    for url, etiquette in tentatives:
-        try:
-            taille, _ = essayer(url, etiquette)
-            if taille:
-                log(f"     méthode : {etiquette}")
-                return taille
-        except urllib.error.HTTPError as e:
-            erreurs.append(f"[{etiquette}] HTTP {e.code}")
-        except Exception as e:
-            erreurs.append(f"[{etiquette}] {type(e).__name__} : {e}")
-
-    raise RuntimeError("Téléchargement impossible. " + " | ".join(erreurs))
-
-
-def ffprobe(path):
-    out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
-                          "-show_entries", "stream=height:format=duration",
-                          "-of", "json", path], capture_output=True, text=True, check=True).stdout
-    j = json.loads(out)
-    duree = float(j.get("format", {}).get("duration") or 0)
-    hauteur = int((j.get("streams") or [{}])[0].get("height") or 0)
-    return duree, hauteur
-
-
-def compresser(src, dst):
-    subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", src,
-                    "-vf", f"scale=-2:'min({HAUTEUR_MAX},ih)'",
-                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "27",
-                    "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", dst], check=True)
-
-
-def publier_replay(it, s3):
+def fiche_replay(it, publie, lien=None):
     v = it["v"]
-    titre = it["name"]
-    log(f"\n   ▶ {titre}")
-    if not v[C_REP["lien"]]:
-        raise RuntimeError("colonne « Lien enregistrement » vide")
-    monday_update(B_REP, it["id"], {C_REP["statut"]: {"label": "En cours"}})
-
-    with tempfile.TemporaryDirectory() as tmp:
-        brut, fin = os.path.join(tmp, "brut.mp4"), os.path.join(tmp, "final.mp4")
-        taille_brute = telecharger(v[C_REP["lien"]], brut)
-        duree, hauteur = ffprobe(brut)
-        log(f"     téléchargé {taille_brute/1e6:.0f} Mo · {duree/60:.0f} min · {hauteur}p")
-
-        if hauteur > HAUTEUR_MAX or taille_brute > duree / 3600 * 450e6:
-            log("     compression 720p…")
-            compresser(brut, fin)
-        else:
-            os.rename(brut, fin)
-        taille = os.path.getsize(fin)
-        log(f"     prêt : {taille/1e6:.0f} Mo")
-
-        key = f"data-analyst/{it['id']}.mp4"
-        if DRY_RUN:
-            log(f"     (dry-run) upload R2 → {key}")
-        else:
-            s3.upload_file(fin, R2_BUCKET, key, ExtraArgs={"ContentType": "video/mp4"})
-            log(f"     déposé dans R2 → {key}")
-
-    date_cv = v[C_REP["date_cv"]] or None
-    purge = None
-    if date_cv:
-        d = dt.date.fromisoformat(date_cv)
-        mois = d.month - 1 + CONSERVATION_MOIS
-        purge = d.replace(year=d.year + mois // 12, month=mois % 12 + 1, day=1)
-
-    sb_upsert("replays", [{
-        "monday_item_id": it["id"], "titre": titre,
+    return {
+        "monday_item_id": it["id"], "titre": it["name"],
         "formation": v[C_REP["formation"]] or FORMATION_APP,
         "module": v[C_REP["module"]] or "Autre",
-        "promo_origine": v[C_REP["promo"]] or None, "date_cv": date_cv,
-        "duree_min": round(duree / 60), "taille_mo": round(taille / 1e6),
-        "r2_key": key, "publie": True,
-        "purge_le": purge.isoformat() if purge else None,
+        "promo_origine": v[C_REP["promo"]] or None,
+        "date_cv": v[C_REP["date_cv"]] or None,
+        "lien": lien, "publie": publie,
+        "purge_le": (date_purge(v[C_REP["date_cv"]]) or dt.date(2099, 1, 1)).isoformat()
+                    if publie else None,
         "maj_le": dt.datetime.now(dt.timezone.utc).isoformat(),
-    }], "monday_item_id")
-
-    monday_update(B_REP, it["id"], {
-        C_REP["statut"]: {"label": "Publié"},
-        C_REP["duree"]: str(round(duree / 60)),
-        C_REP["taille"]: str(round(taille / 1e6)),
-        C_REP["purge"]: {"date": purge.isoformat()} if purge else None,
-        C_REP["journal"]: f"✅ Publié le {MAINTENANT} · {round(duree/60)} min · "
-                          f"{round(taille/1e6)} Mo. Tu peux maintenant retirer le lien "
-                          f"de partage SharePoint (le fichier est dans le coffre).",
-    })
-    log("     ✅ publié")
-
-
-def archiver_replay(it, s3, motif):
-    key = f"data-analyst/{it['id']}.mp4"
-    if not DRY_RUN:
-        try:
-            s3.delete_object(Bucket=R2_BUCKET, Key=key)
-        except Exception as e:
-            log(f"     (R2) {e}")
-    sb_upsert("replays", [{"monday_item_id": it["id"], "titre": it["name"],
-                           "formation": it["v"][C_REP["formation"]] or FORMATION_APP,
-                           "module": it["v"][C_REP["module"]] or "Autre",
-                           "publie": False, "r2_key": None,
-                           "maj_le": dt.datetime.now(dt.timezone.utc).isoformat()}], "monday_item_id")
-    monday_update(B_REP, it["id"], {
-        C_REP["statut"]: {"label": "Archivé"},
-        C_REP["journal"]: f"📦 Archivé le {MAINTENANT} ({motif}) : retiré du portail, "
-                          f"fichier supprimé du coffre.",
-    })
-    log(f"   📦 {it['name']} archivé ({motif})")
+    }
 
 
 def sync_replays():
     log("\n══ 2. Replays ══")
     items = monday_items(B_REP, list(C_REP.values()))
-    publies = {r["monday_item_id"]: r for r in sb_select("replays", {"select": "monday_item_id,publie"})}
-    s3 = r2_client()
+    items.sort(key=lambda it: (it["v"][C_REP["date_cv"]] or "9999", it["name"]))
+    deja = {r["monday_item_id"]: r for r in sb_select("replays", {"select": "monday_item_id,publie"})}
 
-    a_traiter = [it for it in items if it["v"][C_REP["statut"]] == "À traiter"]
-    a_traiter.sort(key=lambda it: (it["v"][C_REP["date_cv"]] or "9999", it["name"]))  # plus ancien d'abord
-    log(f"   {len(a_traiter)} replay(s) à traiter, {MAX_REPLAYS} max pour cette exécution")
-    for it in a_traiter[:MAX_REPLAYS]:
-        try:
-            publier_replay(it, s3)
-        except Exception as e:
-            log(f"     ❌ {e}")
-            monday_update(B_REP, it["id"], {
-                C_REP["statut"]: {"label": "Erreur"},
-                C_REP["journal"]: f"❌ {MAINTENANT} — {str(e)[:900]}\n"
-                                  f"Corrige puis remets le statut « À traiter ».",
-            })
-
+    publies = archives = erreurs = 0
+    a_publier, a_archiver = [], []
     for it in items:
         st = it["v"][C_REP["statut"]]
         purge = it["v"][C_REP["purge"]]
-        deja_publie = publies.get(it["id"], {}).get("publie")
-        if st == "Archivé" and deja_publie:
-            archiver_replay(it, s3, "archivage manuel")
-        elif st == "Publié" and purge and dt.date.fromisoformat(purge) <= AUJOURDHUI:
-            archiver_replay(it, s3, "date de purge atteinte")
+        if st == "À traiter":
+            try:
+                lien = nettoyer_lien(it["v"][C_REP["lien"]])
+            except RuntimeError as e:
+                erreurs += 1
+                log(f"   ❌ {it['name']} : {e}")
+                monday_update(B_REP, it["id"], {
+                    C_REP["statut"]: {"label": "Erreur"},
+                    C_REP["journal"]: f"❌ {MAINTENANT} — {e}\nCorrige puis remets « À traiter »."})
+                continue
+            a_publier.append(fiche_replay(it, True, lien))
+            p = date_purge(it["v"][C_REP["date_cv"]])
+            monday_update(B_REP, it["id"], {
+                C_REP["statut"]: {"label": "Publié"},
+                C_REP["purge"]: {"date": p.isoformat()} if p else None,
+                C_REP["journal"]: f"✅ Publié le {MAINTENANT}. Visible sur le portail (lecture seule, "
+                                  f"téléchargement bloqué par SharePoint)."})
+            publies += 1
+            log(f"   ✅ {it['name']} → publié")
+        elif st == "Publié":
+            if purge and dt.date.fromisoformat(purge) <= AUJOURDHUI:
+                a_archiver.append(it); continue
+            try:
+                a_publier.append(fiche_replay(it, True, nettoyer_lien(it["v"][C_REP["lien"]])))
+            except RuntimeError as e:
+                log(f"   ⚠️ {it['name']} : {e}")
+        elif st == "Archivé" and deja.get(it["id"], {}).get("publie"):
+            a_archiver.append(it)
+
+    for it in a_archiver:
+        motif = "date de purge atteinte" if it["v"][C_REP["statut"]] == "Publié" else "archivage manuel"
+        sb_upsert("replays", [fiche_replay(it, False)], "monday_item_id")
+        monday_update(B_REP, it["id"], {
+            C_REP["statut"]: {"label": "Archivé"},
+            C_REP["journal"]: f"📦 Archivé le {MAINTENANT} ({motif}) : retiré du portail. "
+                              f"Tu peux supprimer le lien de partage SharePoint."})
+        archives += 1
+        log(f"   📦 {it['name']} archivé ({motif})")
+
+    if a_publier:
+        sb_upsert("replays", a_publier, "monday_item_id")
+    log(f"   → {len(a_publier)} replays en ligne · {publies} nouveaux · {archives} archivés · {erreurs} en erreur")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -529,8 +406,7 @@ def sync_replays():
 
 def main():
     for nom, val in [("MONDAY_TOKEN", MONDAY_TOKEN), ("SUPABASE_URL", SUPABASE_URL),
-                     ("SUPABASE_SERVICE_KEY", SUPABASE_KEY), ("R2_ACCESS_KEY_ID", R2_ACCESS_KEY),
-                     ("R2_SECRET_ACCESS_KEY", R2_SECRET_KEY), ("R2_ENDPOINT", R2_ENDPOINT)]:
+                     ("SUPABASE_SERVICE_KEY", SUPABASE_KEY)]:
         if not val:
             fatal(f"secret manquant : {nom}")
     log(f"🤖 Portail replays — {MAINTENANT}" + ("  [DRY-RUN : aucune écriture]" if DRY_RUN else ""))
