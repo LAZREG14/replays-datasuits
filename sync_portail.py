@@ -330,47 +330,71 @@ def r2_client():
                         aws_secret_access_key=R2_SECRET_KEY, region_name="auto")
 
 
-def urls_telechargement(lien):
-    """Lien de partage SharePoint → liste d'URL de téléchargement à essayer."""
-    lien = re.sub(r"[&?]nav=[^&]*", "", lien.strip())
-    urls = [lien + ("&" if "?" in lien else "?") + "download=1"]
-    # Forme download.aspx?share=<jeton> : la plus fiable pour les liens « Toute personne »
-    m = re.match(r"(https://[^/]+/)(?::[a-z]:/g/)?(personal/[^/]+)/([A-Za-z0-9_-]{20,})", lien)
-    if m:
-        racine, perso, jeton = m.groups()
-        urls.append(f"{racine}{perso}/_layouts/15/download.aspx?share={jeton}")
-    return urls
+def _texte_page(page):
+    page = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", page, flags=re.S | re.I)
+    texte = re.sub(r"<[^>]+>", " ", page)
+    texte = re.sub(r"\s+", " ", texte).strip()
+    return texte[:300]
 
 
 def telecharger(lien, dest):
-    """Télécharge la vidéo en essayant chaque forme d'URL, avec gestion des cookies."""
+    """Télécharge la vidéo depuis un lien de partage SharePoint « Toute personne »."""
     import http.cookiejar
     ouvreur = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
     ouvreur.addheaders = [("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"),
                           ("Accept", "*/*")]
+    lien = re.sub(r"[&?]nav=[^&]*", "", lien.strip())
     erreurs = []
-    for url in urls_telechargement(lien):
+
+    def essayer(url, etiquette):
+        with ouvreur.open(url, timeout=60) as r:
+            ctype = r.headers.get("Content-Type", "")
+            if "text/html" in ctype:
+                page = r.read(60000).decode("utf-8", "replace")
+                erreurs.append(f"[{etiquette}] {r.geturl()[:70]}… → « {_texte_page(page)[:160]} »")
+                return None, r.geturl()
+            with open(dest, "wb") as f:
+                shutil.copyfileobj(r, f, length=1024 * 1024)
+            return os.path.getsize(dest), r.geturl()
+
+    # 1) Ouvrir le lien de partage tel quel : pose le cookie de session anonyme
+    #    et révèle le chemin du fichier (paramètre id= de stream.aspx / onedrive.aspx)
+    chemin = None
+    try:
+        with ouvreur.open(lien, timeout=60) as r:
+            fin = r.geturl()
+            page = r.read(60000).decode("utf-8", "replace") if "text/html" in r.headers.get("Content-Type", "") else ""
+        m = re.search(r"[?&]id=([^&]+)", fin) or re.search(r"[?&]id=([^&\"']+)", page)
+        if m:
+            chemin = urllib.parse.unquote(m.group(1))
+        log(f"     session : {fin[:100]}…")
+    except urllib.error.HTTPError as e:
+        erreurs.append(f"[ouverture] HTTP {e.code}")
+    except Exception as e:
+        erreurs.append(f"[ouverture] {type(e).__name__} : {e}")
+
+    tentatives = [(lien + ("&" if "?" in lien else "?") + "download=1", "download=1")]
+    m = re.match(r"(https://[^/]+/)(?::[a-z]:/g/)?(personal/[^/]+)/([A-Za-z0-9_-]{20,})", lien)
+    racine, perso = (m.group(1), m.group(2)) if m else (None, None)
+    if m:
+        tentatives.append((f"{racine}{perso}/_layouts/15/download.aspx?share={m.group(3)}", "share="))
+    if chemin and racine:
+        tentatives.append((f"{racine}{perso}/_layouts/15/download.aspx?SourceUrl="
+                           f"{urllib.parse.quote(chemin)}", "SourceUrl="))
+        tentatives.append((f"{racine.rstrip('/')}{urllib.parse.quote(chemin)}", "chemin direct"))
+
+    for url, etiquette in tentatives:
         try:
-            with ouvreur.open(url, timeout=60) as r:
-                ctype = r.headers.get("Content-Type", "")
-                if "text/html" in ctype:
-                    page = r.read(20000).decode("utf-8", "replace")
-                    titre = re.search(r"<title>(.*?)</title>", page, re.S | re.I)
-                    titre = (titre.group(1).strip()[:80] if titre else "page sans titre")
-                    erreurs.append(f"{r.geturl()[:90]}… → page web « {titre} »")
-                    continue
-                with open(dest, "wb") as f:
-                    shutil.copyfileobj(r, f, length=1024 * 1024)
-            return os.path.getsize(dest)
+            taille, _ = essayer(url, etiquette)
+            if taille:
+                log(f"     méthode : {etiquette}")
+                return taille
         except urllib.error.HTTPError as e:
-            erreurs.append(f"HTTP {e.code} sur {url[:90]}…")
+            erreurs.append(f"[{etiquette}] HTTP {e.code}")
         except Exception as e:
-            erreurs.append(f"{type(e).__name__} : {e}")
-    raise RuntimeError(
-        "Téléchargement impossible. Vérifie sur OneDrive que le lien est bien "
-        "« Toute personne disposant du lien » ET que « Bloquer le téléchargement » "
-        "est désactivé (la fenêtre de partage Stream l'active parfois par défaut). "
-        "Détail : " + " | ".join(erreurs))
+            erreurs.append(f"[{etiquette}] {type(e).__name__} : {e}")
+
+    raise RuntimeError("Téléchargement impossible. " + " | ".join(erreurs))
 
 
 def ffprobe(path):
