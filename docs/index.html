@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" class="h-full">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,380 +8,321 @@
 <link rel="icon" href="ds_logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --navy: #1B355F;
-    --blue: #1493C9;
-    --blue-ink: #0F6F99;
-    --sky: #E4F2FA;
-    --ice: #B7D9EA;
-    --paper: #F6F7FB;
-    --surface: #FFFFFF;
-    --ink: #12192B;
-    --muted: #667085;
-    --line: #E3E7EF;
-    --done: #12B76A;
-    --danger: #B42318;
-    --r: 14px;
-    --display: "Sora", system-ui, sans-serif;
-    --body: "Inter", system-ui, sans-serif;
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<style type="text/tailwindcss">
+  @theme {
+    --color-night: #0B1730;
+    --color-navy: #1B355F;
+    --color-deep: #122748;
+    --color-cyan: #1493C9;
+    --color-glow: #5BC8F5;
+    --color-ice: #B7D9EA;
+    --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; min-height: 100%; background: var(--paper); color: var(--ink);
-    font-family: var(--body); font-size: 16px; line-height: 1.5; }
-  h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; margin: 0; }
-  button { font: inherit; cursor: pointer; }
-  :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
-  .hidden { display: none !important; }
-  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
-  .brand img { height: 34px; width: 34px; display: block; }
-  .brand span { font-family: var(--display); font-weight: 800; font-size: 19px; letter-spacing: -0.02em; }
-  .brandside .brand { color: #fff; position: relative; z-index: 1; }
-  .brandside .brand img { height: 44px; width: 44px; }
-
-  /* ═══════════ Connexion ═══════════ */
-  #login { min-height: 100vh; display: grid; grid-template-columns: 1.1fr 1fr; }
-  .brandside { background: var(--navy); color: #fff; padding: 48px 56px; display: flex;
-    flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
-  .brandside::after { content: ""; position: absolute; right: -180px; bottom: -220px; width: 560px; height: 560px;
-    border-radius: 50%; background: radial-gradient(closest-side, rgba(20,147,201,.6), rgba(20,147,201,0)); }
-  .brandside h1 { font-size: clamp(30px, 4vw, 46px); font-weight: 800; line-height: 1.1; max-width: 12ch; position: relative; z-index: 1; }
-  .brandside p { font-size: 17px; color: var(--ice); max-width: 40ch; margin: 18px 0 0; position: relative; z-index: 1; }
-  .brandside .foot { font-size: 13px; color: #8FA3C8; position: relative; z-index: 1; }
-  .formside { display: grid; place-items: center; padding: 40px 24px; }
-  .form { width: 100%; max-width: 380px; }
-  .form h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
-  .form > p { color: var(--muted); margin: 0 0 26px; }
-  label { display: block; font-size: 14px; font-weight: 600; margin: 16px 0 6px; }
-  input { width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
-    font: inherit; background: #fff; }
-  input:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(20,147,201,.15); }
-  .btn { width: 100%; margin-top: 24px; padding: 13px; border: 0; border-radius: 10px;
-    background: var(--blue); color: #fff; font-weight: 600; font-size: 16px; }
-  .btn:hover { background: var(--blue-ink); }
-  .btn[disabled] { opacity: .6; cursor: wait; }
-  .error { margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: #FEF3F2;
-    color: var(--danger); font-size: 14px; }
-  .hint { margin-top: 20px; font-size: 13px; color: var(--muted); }
-
-  /* ═══════════ Bibliothèque ═══════════ */
-  header { display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    padding: 14px 32px; background: var(--surface); border-bottom: 1px solid var(--line);
-    position: sticky; top: 0; z-index: 5; }
-  .who { display: flex; align-items: center; gap: 14px; font-size: 14px; color: var(--muted); }
-  .who strong { color: var(--ink); font-weight: 600; }
-  .who button { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; color: var(--ink); }
-  .who button:hover { border-color: var(--ink); }
-
-  .hero { background: var(--navy) radial-gradient(circle at 92% 0%, rgba(20,147,201,.45), transparent 42%); color: #fff; padding: 36px 32px 48px; }
-  .hero .in { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end; }
-  .hero h1 { font-size: clamp(26px, 3vw, 36px); font-weight: 800; }
-  .hero p { margin: 8px 0 0; color: var(--ice); }
-  .resume { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: var(--r);
-    padding: 14px 18px; color: #fff; text-align: left; display: flex; gap: 14px; align-items: center; max-width: 400px; }
-  .resume:hover { background: rgba(255,255,255,.14); }
-  .resume .play { width: 40px; height: 40px; border-radius: 50%; background: var(--blue); display: grid; place-items: center; flex: none; }
-  .resume small { display: block; color: var(--ice); font-size: 12px; }
-  .resume b { font-weight: 600; font-size: 15px; }
-
-  .wrap { max-width: 1120px; margin: -24px auto 60px; padding: 0 32px; display: grid; grid-template-columns: 300px 1fr; gap: 28px; }
-  .wrap > * { min-width: 0; }
-  .wrap main { padding-top: 40px; }
-
-  /* rail des modules */
-  .rail { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px;
-    align-self: start; position: sticky; top: 80px; }
-  .rail h2 { font-size: 13px; font-weight: 600; color: var(--muted); padding: 8px 12px 10px; }
-  .mod { display: grid; grid-template-columns: 36px 1fr; gap: 12px; align-items: center; width: 100%;
-    background: none; border: 0; border-radius: 10px; padding: 10px 12px; text-align: left; color: var(--ink); }
-  .mod:hover { background: var(--paper); }
-  .mod.active { background: var(--sky); }
-  .ring { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; position: relative;
-    font-family: var(--display); font-weight: 700; font-size: 13px; color: #fff;
-    background: conic-gradient(var(--c) calc(var(--p) * 1%), #E3E7EF 0); }
-  .ring::before { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--c); }
-  .ring span { position: relative; }
-  .mod b { display: block; font-weight: 600; font-size: 15px; }
-  .mod small { color: var(--muted); font-size: 12.5px; }
-
-  /* replays */
-  .head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-  .head h2 { font-size: 22px; font-weight: 700; }
-  .head p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
-  .search { position: relative; }
-  .search input { width: 260px; padding: 10px 12px 10px 38px; border-radius: 999px; }
-  .search svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden;
-    text-align: left; padding: 0; color: var(--ink); display: flex; flex-direction: column; }
-  .card:hover { border-color: var(--blue); }
-  .cover { aspect-ratio: 16/9; background: var(--c); position: relative; display: grid; place-items: center; overflow: hidden; }
-  .cover::before { content: ""; position: absolute; inset: 0; background:
-    radial-gradient(circle at 20% 20%, rgba(255,255,255,.28), transparent 45%),
-    radial-gradient(circle at 85% 80%, rgba(0,0,0,.18), transparent 50%); }
-  .cover .n { position: absolute; left: 14px; top: 12px; color: rgba(255,255,255,.9); font-family: var(--display); font-weight: 700; font-size: 13px; }
-  .cover .play { width: 54px; height: 54px; border-radius: 50%; background: rgba(255,255,255,.95); display: grid; place-items: center; position: relative; }
-  .card:hover .play { transform: scale(1.06); }
-  .cover .seen { position: absolute; right: 12px; top: 10px; background: var(--done); color: #fff; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
-  .body { padding: 14px 16px 16px; }
-  .body b { display: block; font-weight: 600; font-size: 15px; line-height: 1.35; }
-  .body small { display: block; color: var(--muted); font-size: 13px; margin-top: 4px; }
-  .empty { padding: 48px 0; color: var(--muted); }
-  .note { margin-top: 28px; font-size: 13px; color: var(--muted); max-width: 64ch; }
-  .msg { padding: 16px; border-radius: var(--r); background: #FEF3F2; color: var(--danger); grid-column: 1 / -1; }
-
-  @media (max-width: 900px) {
-    #login { grid-template-columns: 1fr; }
-    .brandside { padding: 28px 24px; min-height: 240px; }
-    .brandside p, .brandside .foot { display: none; }
-    .wrap { grid-template-columns: 1fr; margin-top: 16px; padding: 0 16px; }
-    .rail { position: static; padding: 8px; }
-    .rail h2 { display: none; }
-    .rail #modules { display: flex; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .grid { grid-template-columns: 1fr; }
-    .who > span { display: none; }
-    .mod { grid-template-columns: 30px auto; white-space: nowrap; padding: 8px 10px; }
-    .mod small { display: none; }
-    .ring { width: 30px; height: 30px; font-size: 11px; }
-    header { padding: 12px 16px; }
-    .hero { padding: 24px 16px 40px; }
-    .hero .in { grid-template-columns: 1fr; align-items: start; }
-    .search input { width: 100%; }
-    .head { align-items: stretch; flex-direction: column; }
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    .card, .mod, .btn, .resume, .play { transition: background-color .15s, border-color .15s, transform .15s; }
-  }
+  @keyframes drift { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(6%, -4%) scale(1.08); } }
+  @keyframes drift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-5%, 6%) scale(1.05); } }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .blob-a { animation: drift 18s ease-in-out infinite; }
+  .blob-b { animation: drift2 22s ease-in-out infinite; }
+  .rise { animation: rise .5s ease-out both; }
+  .rise-1 { animation-delay: .08s } .rise-2 { animation-delay: .16s } .rise-3 { animation-delay: .24s }
+  @media (prefers-reduced-motion: reduce) { .blob-a, .blob-b, .rise { animation: none; } }
+  .row::-webkit-scrollbar { height: 6px; } .row::-webkit-scrollbar-thumb { background: #1B355F; border-radius: 6px; }
+  .glass { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); backdrop-filter: blur(14px); }
+  [x-cloak] { display: none !important; }
 </style>
 </head>
-<body>
+<body class="h-full bg-night text-white font-sans antialiased selection:bg-cyan/40">
 
-<!-- ═══════════ Connexion ═══════════ -->
-<section id="login">
-  <div class="brandside">
-    <div class="brand"><img src="ds_logo.png" alt=""><span>DataSuits</span></div>
-    <div>
-      <h1>Tes classes virtuelles, à revoir quand tu veux.</h1>
-      <p>Tous les replays de ta formation, classés par module, accessibles depuis n'importe quel appareil.</p>
-    </div>
-    <div class="foot">Espace réservé aux apprenants DataSuits</div>
+<div x-data="app()" x-init="init()" class="min-h-full relative overflow-x-hidden">
+
+  <!-- ───── Aurora de fond ───── -->
+  <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+    <div class="blob-a absolute -top-40 -left-40 h-[36rem] w-[36rem] rounded-full bg-cyan/25 blur-3xl"></div>
+    <div class="blob-b absolute top-1/3 -right-52 h-[40rem] w-[40rem] rounded-full bg-navy blur-3xl"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(91,200,245,.18),transparent_55%)]"></div>
   </div>
-  <div class="formside">
-    <div class="form">
-      <h2>Connexion</h2>
-      <p>Avec l'identifiant et le mot de passe reçus sur Slack.</p>
-      <label for="email">Identifiant</label>
-      <input id="email" type="email" autocomplete="username" placeholder="prenom.nom@datasuits.fr" inputmode="email">
-      <label for="password">Mot de passe</label>
-      <input id="password" type="password" autocomplete="current-password" placeholder="Prenom.Pxxxx.xxxxx">
-      <button class="btn" id="submit">Ouvrir mes replays</button>
-      <div class="error hidden" id="login-error"></div>
-      <div class="hint">Mot de passe perdu ? Demande-le dans ta room Slack, l'équipe t'en génère un nouveau.</div>
-    </div>
-  </div>
-</section>
 
-<!-- ═══════════ Bibliothèque ═══════════ -->
-<div id="library" class="hidden">
-  <header>
-    <div class="brand"><img src="ds_logo.png" alt=""><span>DataSuits</span></div>
-    <div class="who"><span id="who-name"></span><button id="logout">Se déconnecter</button></div>
-  </header>
-
-  <section class="hero">
-    <div class="in">
-      <div>
-        <h1 id="hello">Bonjour</h1>
-        <p id="hello-sub"></p>
+  <!-- ═══════════ CONNEXION ═══════════ -->
+  <section x-cloak x-show="!user && ready" class="min-h-screen grid place-items-center px-5 py-12">
+    <div class="w-full max-w-md rise">
+      <div class="flex items-center gap-3 mb-10">
+        <img src="ds_logo.png" alt="" class="h-12 w-12 drop-shadow-[0_0_24px_rgba(91,200,245,.45)]">
+        <span class="font-display font-extrabold text-2xl tracking-tight">DataSuits</span>
       </div>
-      <button class="resume hidden" id="resume">
-        <span class="play" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></span>
-        <span><small>Reprendre</small><b id="resume-title"></b></span>
-      </button>
+      <h1 class="font-display text-4xl sm:text-5xl font-extrabold leading-[1.05] tracking-tight">
+        Tes classes virtuelles,<br><span class="text-glow">à revoir quand tu veux.</span>
+      </h1>
+      <p class="mt-4 text-ice/80 max-w-sm">Connecte-toi avec l'identifiant et le mot de passe reçus sur Slack.</p>
+
+      <form @submit.prevent="login()" class="glass rounded-2xl p-6 mt-8 space-y-4 rise rise-1">
+        <label class="block">
+          <span class="text-sm font-medium text-ice">Identifiant</span>
+          <input x-model="form.email" type="email" autocomplete="username" inputmode="email" placeholder="prenom.nom@datasuits.fr"
+                 class="mt-1.5 w-full rounded-xl bg-night/60 border border-white/10 px-4 py-3 outline-none placeholder:text-white/30 focus:border-glow focus:ring-4 focus:ring-glow/15">
+        </label>
+        <label class="block">
+          <span class="text-sm font-medium text-ice">Mot de passe</span>
+          <div class="relative mt-1.5">
+            <input x-model="form.password" :type="showPwd ? 'text' : 'password'" autocomplete="current-password" placeholder="Prenom.Pxxxx.xxxxx"
+                   class="w-full rounded-xl bg-night/60 border border-white/10 px-4 py-3 pr-20 outline-none placeholder:text-white/30 focus:border-glow focus:ring-4 focus:ring-glow/15">
+            <button type="button" @click="showPwd = !showPwd" class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-ice/70 hover:text-white px-2 py-1" x-text="showPwd ? 'Masquer' : 'Afficher'"></button>
+          </div>
+        </label>
+        <button :disabled="busy" class="w-full rounded-xl bg-cyan hover:bg-glow hover:text-night transition font-semibold py-3 disabled:opacity-60 disabled:cursor-wait">
+          <span x-show="!busy">Ouvrir mes replays</span><span x-show="busy">Connexion…</span>
+        </button>
+        <p x-show="error" x-text="error" x-cloak class="text-sm text-red-300 bg-red-500/10 border border-red-400/20 rounded-lg px-3 py-2"></p>
+      </form>
+      <p class="mt-6 text-sm text-ice/60">Mot de passe perdu ? Demande-le dans ta room Slack, l'équipe t'en génère un nouveau.</p>
     </div>
   </section>
 
-  <div class="wrap">
-    <nav class="rail" aria-label="Modules">
-      <h2>Ton parcours</h2>
-      <div id="modules"></div>
-    </nav>
-    <main>
-      <div class="head">
-        <div>
-          <h2 id="module-title">Replays</h2>
-          <p id="module-sub"></p>
+  <!-- ═══════════ BIBLIOTHÈQUE ═══════════ -->
+  <div x-cloak x-show="user">
+
+    <!-- En-tête -->
+    <header class="sticky top-0 z-30 border-b border-white/5 bg-night/70 backdrop-blur-xl">
+      <div class="mx-auto max-w-7xl px-5 sm:px-8 h-16 flex items-center gap-4">
+        <div class="flex items-center gap-2.5 shrink-0">
+          <img src="ds_logo.png" alt="" class="h-9 w-9">
+          <span class="font-display font-extrabold text-lg tracking-tight hidden sm:inline">DataSuits</span>
         </div>
-        <div class="search">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input id="q" type="search" placeholder="Rechercher un sujet…" aria-label="Rechercher">
+        <button @click="openPalette()" class="ml-auto flex items-center gap-3 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2 text-sm text-ice/80 transition w-full max-w-xs">
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <span class="truncate">Rechercher un sujet…</span>
+          <kbd class="ml-auto hidden md:inline rounded border border-white/15 px-1.5 py-0.5 text-[11px] text-white/50">Ctrl K</kbd>
+        </button>
+        <div class="flex items-center gap-3 shrink-0">
+          <span class="hidden md:block text-sm text-ice/80"><span class="font-semibold text-white" x-text="me.nom"></span><span x-show="me.promo" x-text="' · ' + me.promo"></span></span>
+          <button @click="logout()" class="rounded-full border border-white/15 hover:border-white/40 px-3.5 py-1.5 text-sm transition">Quitter</button>
         </div>
       </div>
-      <div class="grid" id="replays"></div>
-      <p class="note">Les replays s'ouvrent dans le lecteur vidéo Microsoft, en lecture seule. Ils sont réservés aux apprenants DataSuits : merci de ne pas partager les liens.</p>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-5 sm:px-8 pb-24">
+
+      <!-- Hero -->
+      <section class="pt-10 pb-6 grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center rise">
+        <div>
+          <p class="text-ice/70 text-sm font-medium" x-text="salut()"></p>
+          <h1 class="font-display text-4xl sm:text-5xl font-extrabold tracking-tight mt-1" x-text="me.prenom ? me.prenom : 'Bienvenue'"></h1>
+          <p class="mt-3 text-ice/80 max-w-lg" x-text="phraseProgression()"></p>
+          <div class="mt-6 flex flex-wrap gap-3">
+            <button x-show="dernier" @click="regarder(dernier)" class="group inline-flex items-center gap-3 rounded-2xl bg-cyan hover:bg-glow hover:text-night px-5 py-3 font-semibold transition">
+              <span class="grid h-8 w-8 place-items-center rounded-full bg-white/20 group-hover:bg-night/15"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+              <span class="text-left leading-tight"><span class="block text-[11px] uppercase tracking-wide opacity-80">Reprendre</span><span x-text="dernier && titreCourt(dernier.titre)"></span></span>
+            </button>
+            <button x-show="prochain && (!dernier || prochain.id !== dernier.id)" @click="regarder(prochain)" class="inline-flex items-center gap-3 rounded-2xl glass hover:bg-white/10 px-5 py-3 font-semibold transition">
+              <span class="text-left leading-tight"><span class="block text-[11px] uppercase tracking-wide text-ice/70">Prochain à voir</span><span x-text="prochain && (prochain.module + ' · ' + titreCourt(prochain.titre))"></span></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Anneau de progression -->
+        <div class="glass rounded-3xl p-6 flex items-center gap-6 lg:w-80 rise rise-1">
+          <div class="relative h-28 w-28 shrink-0">
+            <svg viewBox="0 0 120 120" class="h-full w-full -rotate-90">
+              <circle cx="60" cy="60" r="50" stroke="rgba(255,255,255,.08)" stroke-width="12" fill="none"/>
+              <circle cx="60" cy="60" r="50" stroke="url(#g)" stroke-width="12" fill="none" stroke-linecap="round"
+                      :stroke-dasharray="314" :stroke-dashoffset="314 - 314 * pct() / 100" class="transition-[stroke-dashoffset] duration-1000 ease-out"/>
+              <defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#1493C9"/><stop offset="1" stop-color="#5BC8F5"/></linearGradient></defs>
+            </svg>
+            <div class="absolute inset-0 grid place-items-center font-display text-2xl font-extrabold" x-text="pct() + '%'"></div>
+          </div>
+          <div>
+            <p class="font-display font-bold text-lg">Ta progression</p>
+            <p class="text-sm text-ice/80 mt-1"><span x-text="vus.size"></span> sur <span x-text="replays.length"></span> replays ouverts</p>
+            <p class="text-sm text-ice/60 mt-2" x-text="modulesFinis() + ' module' + (modulesFinis() > 1 ? 's' : '') + ' terminé' + (modulesFinis() > 1 ? 's' : '')"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Erreur / vide -->
+      <template x-if="loadError"><div class="mt-8 rounded-2xl border border-red-400/20 bg-red-500/10 p-5 text-red-200">Impossible de charger les replays. Détail : <span x-text="loadError"></span></div></template>
+      <template x-if="!loadError && !replays.length"><div class="mt-10 glass rounded-3xl p-10 text-center text-ice/80">Aucun replay pour l'instant. Les enregistrements apparaîtront ici dès leur publication.</div></template>
+
+      <!-- Rangées par module -->
+      <template x-for="(m, i) in modules()" :key="m.nom">
+        <section class="mt-10 rise" :class="'rise-' + Math.min(i + 1, 3)">
+          <div class="flex items-end justify-between gap-4 mb-4">
+            <div class="flex items-center gap-3">
+              <span class="h-3 w-3 rounded-full shadow-[0_0_16px_var(--c)]" :style="`--c:${m.couleur}; background:${m.couleur}`"></span>
+              <h2 class="font-display text-2xl font-bold tracking-tight" x-text="m.nom"></h2>
+              <span class="text-sm text-ice/60" x-text="m.vus + '/' + m.items.length + ' vu' + (m.items.length > 1 ? 's' : '')"></span>
+            </div>
+            <div class="h-1.5 w-32 rounded-full bg-white/10 overflow-hidden hidden sm:block">
+              <div class="h-full rounded-full transition-all duration-700" :style="`width:${100 * m.vus / m.items.length}%; background:${m.couleur}`"></div>
+            </div>
+          </div>
+          <div class="row flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory -mx-5 px-5 sm:mx-0 sm:px-0">
+            <template x-for="r in m.items" :key="r.id">
+              <button @click="regarder(r)" class="group relative w-72 sm:w-80 shrink-0 snap-start rounded-2xl overflow-hidden text-left glass hover:border-white/25 transition focus-visible:ring-4 focus-visible:ring-glow/40 outline-none">
+                <div class="relative aspect-video overflow-hidden" :style="`background: linear-gradient(135deg, ${m.couleur}, #0B1730 140%)`">
+                  <span class="absolute -right-3 -bottom-8 font-display font-extrabold text-[120px] leading-none text-white/10 select-none" x-text="m.numero"></span>
+                  <span class="absolute left-4 top-3.5 text-xs font-semibold tracking-wide text-white/90" x-text="numClasse(r.titre) ? 'Classe ' + numClasse(r.titre) : 'Replay'"></span>
+                  <span x-show="vus.has(r.id)" class="absolute right-3 top-3 rounded-full bg-emerald-400/90 text-night text-[11px] font-bold px-2 py-0.5">Vu</span>
+                  <span class="absolute inset-0 grid place-items-center">
+                    <span class="grid h-14 w-14 place-items-center rounded-full bg-white/90 text-night shadow-xl transition-transform duration-300 group-hover:scale-110">
+                      <svg class="h-6 w-6 translate-x-0.5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    </span>
+                  </span>
+                </div>
+                <div class="p-4">
+                  <p class="font-semibold leading-snug" x-text="titreCourt(r.titre)"></p>
+                  <p class="mt-1 text-xs text-ice/60">Classe virtuelle en replay · lecture seule</p>
+                </div>
+              </button>
+            </template>
+          </div>
+        </section>
+      </template>
+
+      <p class="mt-14 text-xs text-ice/50 max-w-2xl">Les replays s'ouvrent dans le lecteur vidéo Microsoft, en lecture seule. Ils sont réservés aux apprenants DataSuits : merci de ne pas partager les liens.</p>
     </main>
+
+    <!-- Palette de commandes -->
+    <div x-show="palette" x-cloak class="fixed inset-0 z-40 bg-night/70 backdrop-blur-sm" @click.self="palette = false" @keydown.escape.window="palette = false">
+      <div class="mx-auto mt-24 w-[min(92vw,640px)] glass rounded-2xl overflow-hidden shadow-2xl" @keydown.arrow-down.prevent="sel = Math.min(sel + 1, resultats().length - 1)" @keydown.arrow-up.prevent="sel = Math.max(sel - 1, 0)" @keydown.enter.prevent="resultats()[sel] && regarder(resultats()[sel])">
+        <div class="flex items-center gap-3 border-b border-white/10 px-4">
+          <svg class="h-5 w-5 text-ice/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input x-ref="q" x-model="q" @input="sel = 0" placeholder="Python, SQL, Power BI, Machine Learning…" class="flex-1 bg-transparent py-4 outline-none placeholder:text-white/30">
+          <kbd class="rounded border border-white/15 px-1.5 py-0.5 text-[11px] text-white/50">Échap</kbd>
+        </div>
+        <ul class="max-h-80 overflow-y-auto py-2">
+          <template x-for="(r, i) in resultats()" :key="r.id">
+            <li>
+              <button @click="regarder(r)" @mouseenter="sel = i" class="w-full flex items-center gap-3 px-4 py-3 text-left transition" :class="sel === i ? 'bg-white/10' : ''">
+                <span class="h-2.5 w-2.5 rounded-full shrink-0" :style="`background:${couleur(r.module)}`"></span>
+                <span class="flex-1 min-w-0"><span class="block truncate font-medium" x-text="titreCourt(r.titre)"></span><span class="block text-xs text-ice/60" x-text="r.module + (numClasse(r.titre) ? ' · Classe ' + numClasse(r.titre) : '')"></span></span>
+                <span x-show="vus.has(r.id)" class="text-[11px] text-emerald-300">Vu</span>
+              </button>
+            </li>
+          </template>
+          <li x-show="q && !resultats().length" class="px-4 py-6 text-center text-sm text-ice/60">Rien ne correspond à cette recherche.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div x-show="toast" x-cloak x-transition.opacity class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass rounded-full px-5 py-2.5 text-sm shadow-xl" x-text="toast"></div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script>
-(function () {
-  const $ = (id) => document.getElementById(id);
-  if (!window.PORTAIL || !PORTAIL.url || !PORTAIL.anon) {
-    $("login-error").textContent = "Le fichier config.js est manquant ou incomplet.";
-    $("login-error").classList.remove("hidden");
-    return;
-  }
-  const sb = supabase.createClient(PORTAIL.url, PORTAIL.anon);
-  const ORDRE = ["Module 1", "Module 2", "Module 3", "Module 4", "Module 5", "Module 6", "Module 7", "Projet Final", "Autre"];
-  const COULEURS = { "Module 1": "#1493C9", "Module 2": "#7A5AF8", "Module 3": "#0E9F8A", "Module 4": "#F0731A",
-                     "Module 5": "#D6338F", "Module 6": "#1D8FB5", "Module 7": "#6B7A2D", "Projet Final": "#1B355F", "Autre": "#667085" };
-  let replays = [], vus = new Set(), moduleActif = null, moi = null, requete = "";
+const ORDRE = ["Module 1","Module 2","Module 3","Module 4","Module 5","Module 6","Module 7","Projet Final","Autre"];
+// mots-clés supplémentaires pour la recherche (outils vus dans chaque module)
+const MOTS = { "Module 1": "excel introduction analyse statistiques", "Module 2": "sql base de données requêtes",
+               "Module 3": "python pandas notebook", "Module 4": "power bi dataviz visualisation tableau de bord dax",
+               "Module 5": "machine learning scikit-learn modèle prédiction", "Module 6": "ia générative chatgpt prompt",
+               "Projet Final": "projet soutenance jury bootcamp" };
+const COULEURS = { "Module 1":"#1493C9","Module 2":"#7A5AF8","Module 3":"#0E9F8A","Module 4":"#F0731A",
+                   "Module 5":"#D6338F","Module 6":"#2563EB","Module 7":"#8A9A2E","Projet Final":"#5BC8F5","Autre":"#667085" };
 
-  /* ── connexion ── */
-  async function connecter() {
-    const email = $("email").value.trim().toLowerCase();
-    const password = $("password").value;
-    $("login-error").classList.add("hidden");
-    if (!email || !password) return erreur("Renseigne ton identifiant et ton mot de passe.");
-    $("submit").disabled = true;
-    const { error } = await sb.auth.signInWithPassword({ email, password });
-    $("submit").disabled = false;
-    if (error) {
-      const m = (error.message || "").toLowerCase();
-      if (m.includes("banned") || m.includes("disabled")) return erreur("Ton accès est désactivé. Contacte l'équipe DataSuits.");
-      if (m.includes("invalid")) return erreur("Identifiant ou mot de passe incorrect. Vérifie les majuscules et les points.");
-      return erreur("Connexion impossible pour le moment : " + error.message);
-    }
-    await ouvrir();
-  }
-  function erreur(msg) { $("login-error").textContent = msg; $("login-error").classList.remove("hidden"); }
+function app() {
+  const sb = (window.PORTAIL && PORTAIL.url && PORTAIL.anon) ? supabase.createClient(PORTAIL.url, PORTAIL.anon) : null;
+  return {
+    ready: false, user: null, me: { nom: "", prenom: "", promo: "" },
+    form: { email: "", password: "" }, showPwd: false, busy: false, error: "",
+    replays: [], vus: new Set(), historique: [], loadError: "",
+    palette: false, q: "", sel: 0, toast: "",
 
-  /* ── chargement ── */
-  async function ouvrir() {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
-    moi = session.user;
-    const [fiche, rows, lectures] = await Promise.all([
-      sb.from("apprenants").select("nom,promo").eq("email", moi.email).maybeSingle(),
-      sb.from("replays").select("id,titre,module,date_cv,lien").eq("publie", true).order("date_cv", { ascending: true }),
-      sb.from("lectures").select("replay_id,ouvert_le").order("ouvert_le", { ascending: false }),
-    ]);
-    $("login").classList.add("hidden");
-    $("library").classList.remove("hidden");
-    const prenom = fiche.data ? fiche.data.nom.split(" ")[0] : "";
-    $("who-name").innerHTML = fiche.data
-      ? `<strong>${echap(fiche.data.nom)}</strong>${fiche.data.promo ? " · " + echap(fiche.data.promo) : ""}`
-      : echap(moi.email);
-    $("hello").textContent = prenom ? `Bonjour ${prenom}` : "Bonjour";
-    if (rows.error) {
-      $("replays").innerHTML = `<div class="msg">Impossible de charger les replays. Détail : ${echap(rows.error.message)}</div>`;
-      return;
-    }
-    replays = rows.data || [];
-    const historique = lectures.data || [];
-    vus = new Set(historique.map((l) => l.replay_id));
-    majCompteur();
+    async init() {
+      if (!sb) { this.error = "Le fichier config.js est manquant ou incomplet."; this.ready = true; return; }
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) await this.charger(session.user);
+      this.ready = true;
+      window.addEventListener("keydown", (e) => {
+        if (!this.user) return;
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); this.openPalette(); }
+        else if (e.key === "/" && !this.palette && document.activeElement.tagName !== "INPUT") { e.preventDefault(); this.openPalette(); }
+      });
+    },
 
-    const dernier = historique.map((l) => replays.find((r) => r.id === l.replay_id)).find(Boolean);
-    if (dernier) afficherReprise(dernier);
-    dessinerModules();
-  }
+    async login() {
+      this.error = "";
+      const email = this.form.email.trim().toLowerCase();
+      if (!email || !this.form.password) { this.error = "Renseigne ton identifiant et ton mot de passe."; return; }
+      this.busy = true;
+      const { data, error } = await sb.auth.signInWithPassword({ email, password: this.form.password });
+      this.busy = false;
+      if (error) {
+        const m = (error.message || "").toLowerCase();
+        this.error = m.includes("banned") || m.includes("disabled") ? "Ton accès est désactivé. Contacte l'équipe DataSuits."
+                   : m.includes("invalid") ? "Identifiant ou mot de passe incorrect. Vérifie les majuscules et les points."
+                   : "Connexion impossible pour le moment : " + error.message;
+        return;
+      }
+      await this.charger(data.user);
+    },
 
-  function majCompteur() {
-    const total = replays.length, faits = replays.filter((r) => vus.has(r.id)).length;
-    $("hello-sub").textContent = total ? `${faits} replay${faits > 1 ? "s" : ""} ouvert${faits > 1 ? "s" : ""} sur ${total}` : "";
-  }
-  function afficherReprise(r) {
-    $("resume").classList.remove("hidden");
-    $("resume-title").textContent = `${r.module} · ${titreCourt(r.titre)}`;
-    $("resume").onclick = () => regarder(r);
-  }
+    async charger(user) {
+      const [fiche, rows, lectures] = await Promise.all([
+        sb.from("apprenants").select("nom,promo").eq("email", user.email).maybeSingle(),
+        sb.from("replays").select("id,titre,module,date_cv,lien").eq("publie", true).order("date_cv", { ascending: true }),
+        sb.from("lectures").select("replay_id,ouvert_le").order("ouvert_le", { ascending: false }),
+      ]);
+      this.me = { nom: fiche.data?.nom || user.email, prenom: (fiche.data?.nom || "").split(" ")[0], promo: fiche.data?.promo || "" };
+      if (rows.error) this.loadError = rows.error.message;
+      this.replays = rows.data || [];
+      this.historique = lectures.data || [];
+      this.vus = new Set(this.historique.map((l) => l.replay_id));
+      this.user = user;
+    },
 
-  /* ── rail ── */
-  function dessinerModules() {
-    const modules = ORDRE.filter((m) => replays.some((r) => r.module === m));
-    const nav = $("modules"); nav.innerHTML = "";
-    if (!modules.length) {
-      $("module-title").textContent = "Aucun replay pour l'instant";
-      $("module-sub").textContent = "Les enregistrements apparaîtront ici dès leur publication.";
-      $("replays").innerHTML = "";
-      return;
-    }
-    if (!moduleActif || !modules.includes(moduleActif)) moduleActif = modules[0];
-    modules.forEach((m) => {
-      const liste = replays.filter((r) => r.module === m);
-      const faits = liste.filter((r) => vus.has(r.id)).length;
-      const b = document.createElement("button");
-      b.className = "mod" + (m === moduleActif && !requete.trim() ? " active" : "");
-      b.style.setProperty("--c", COULEURS[m] || COULEURS.Autre);
-      b.style.setProperty("--p", Math.round(100 * faits / liste.length));
-      b.innerHTML = `<span class="ring" aria-hidden="true"><span>${m === "Projet Final" ? "PF" : m.replace("Module ", "")}</span></span>
-        <span><b>${echap(m)}</b><small>${faits}/${liste.length} vu${liste.length > 1 ? "s" : ""}</small></span>`;
-      b.onclick = () => { moduleActif = m; requete = ""; $("q").value = ""; dessinerModules(); };
-      nav.appendChild(b);
-    });
-    dessinerReplays();
-  }
+    async logout() { await sb.auth.signOut(); location.reload(); },
 
-  /* ── cartes ── */
-  function dessinerReplays() {
-    const q = requete.trim().toLowerCase();
-    let liste = replays.filter((r) => r.module === moduleActif);
-    if (q) liste = replays.filter((r) => (r.titre || "").toLowerCase().includes(q));
-    $("module-title").textContent = q ? `Résultats pour « ${requete.trim()} »` : moduleActif;
-    const restants = liste.filter((r) => !vus.has(r.id)).length;
-    $("module-sub").textContent = q
-      ? `${liste.length} replay${liste.length > 1 ? "s" : ""}`
-      : (restants ? `${restants} replay${restants > 1 ? "s" : ""} à découvrir` : "Tu as ouvert tous les replays de ce module.");
-    const box = $("replays"); box.innerHTML = "";
-    if (!liste.length) { box.innerHTML = `<p class="empty">Rien ne correspond à cette recherche.</p>`; return; }
-    liste.forEach((r) => {
-      const couleur = COULEURS[r.module] || COULEURS.Autre;
-      const num = numClasse(r.titre);
-      const b = document.createElement("button");
-      b.className = "card";
-      b.style.setProperty("--c", couleur);
-      b.innerHTML = `
-        <span class="cover">
-          <span class="n">${q ? echap(r.module) + " · " : ""}${num ? "Classe " + num : "Replay"}</span>
-          ${vus.has(r.id) ? `<span class="seen">Vu</span>` : ""}
-          <span class="play" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="${couleur}"><path d="M8 5v14l11-7z"/></svg></span>
-        </span>
-        <span class="body"><b>${echap(titreCourt(r.titre))}</b><small>Classe virtuelle en replay</small></span>`;
-      b.onclick = () => regarder(r);
-      box.appendChild(b);
-    });
-  }
+    /* ── dérivés ── */
+    get dernier() { return this.historique.map((l) => this.replays.find((r) => r.id === l.replay_id)).find(Boolean) || null; },
+    get prochain() { return this.replays.find((r) => !this.vus.has(r.id)) || null; },
+    modules() {
+      return ORDRE.filter((m) => this.replays.some((r) => r.module === m)).map((m) => {
+        const items = this.replays.filter((r) => r.module === m);
+        return { nom: m, couleur: COULEURS[m] || COULEURS.Autre, items, vus: items.filter((r) => this.vus.has(r.id)).length,
+                 numero: m === "Projet Final" ? "PF" : m.replace("Module ", "") };
+      });
+    },
+    modulesFinis() { return this.modules().filter((m) => m.vus === m.items.length).length; },
+    pct() { return this.replays.length ? Math.round(100 * this.vus.size / this.replays.length) : 0; },
+    phraseProgression() {
+      if (!this.replays.length) return "";
+      const reste = this.replays.length - this.vus.size;
+      if (!reste) return "Tu as ouvert tous les replays disponibles. Bravo.";
+      if (!this.vus.size) return `${this.replays.length} replays t'attendent, classés par module.`;
+      return `Encore ${reste} replay${reste > 1 ? "s" : ""} à découvrir. Continue sur ta lancée.`;
+    },
+    salut() { const h = new Date().getHours(); return h < 5 ? "Bonne nuit" : h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir"; },
+    resultats() {
+      const q = this.q.trim().toLowerCase();
+      if (!q) return this.replays.slice(0, 8);
+      return this.replays.filter((r) => (r.titre + " " + r.module + " " + (MOTS[r.module] || "")).toLowerCase().includes(q));
+    },
+    openPalette() { this.palette = true; this.q = ""; this.sel = 0; this.$nextTick(() => this.$refs.q.focus()); },
 
-  async function regarder(r) {
-    const fenetre = window.open("", "_blank", "noopener");
-    if (!vus.has(r.id)) {
-      vus.add(r.id);
-      sb.from("lectures").insert({ email: moi.email, replay_id: r.id }).then(() => {});
-      majCompteur();
-    }
-    afficherReprise(r);
-    dessinerModules();
-    if (fenetre) fenetre.location = r.lien; else window.location = r.lien;
-  }
+    /* ── actions ── */
+    regarder(r) {
+      const fenetre = window.open("", "_blank", "noopener");
+      if (!this.vus.has(r.id)) {
+        this.vus = new Set([...this.vus, r.id]);
+        sb.from("lectures").insert({ email: this.user.email, replay_id: r.id }).then(() => {});
+      }
+      this.historique = [{ replay_id: r.id, ouvert_le: new Date().toISOString() }, ...this.historique];
+      this.palette = false;
+      this.notifier("Ouverture de « " + this.titreCourt(r.titre) + " » dans un nouvel onglet");
+      if (fenetre) fenetre.location = r.lien; else window.location = r.lien;
+    },
+    notifier(msg) { this.toast = msg; clearTimeout(this._t); this._t = setTimeout(() => (this.toast = ""), 2800); },
 
-  /* ── utilitaires ── */
-  function numClasse(t) { const m = /Classe\s*(\d+)/i.exec(t || ""); return m ? m[1] : ""; }
-  function titreCourt(t) {
-    const parts = (t || "").split("·").map((s) => s.trim());
-    return parts.length >= 3 ? parts.slice(2).join(" · ") : parts[parts.length - 1];
-  }
-  function echap(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
-
-  /* ── câblage ── */
-  $("submit").onclick = connecter;
-  ["email", "password"].forEach((id) => $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") connecter(); }));
-  $("logout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
-  $("q").addEventListener("input", (e) => { requete = e.target.value; dessinerModules(); });
-  ouvrir();
-})();
+    /* ── utilitaires ── */
+    couleur(m) { return COULEURS[m] || COULEURS.Autre; },
+    numClasse(t) { const m = /Classe\s*(\d+)/i.exec(t || ""); return m ? m[1] : ""; },
+    titreCourt(t) { const p = (t || "").split("·").map((s) => s.trim()); return p.length >= 3 ? p.slice(2).join(" · ") : p[p.length - 1]; },
+  };
+}
 </script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
 </body>
 </html>
