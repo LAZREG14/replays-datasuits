@@ -5,15 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Replays · DataSuits</title>
-<link rel="icon" href="https://cdn.prod.website-files.com/68dbfb6770149c725a7a99b4/68e7eb06c15bf32cfb7455ad_Image%20(1).avif">
+<link rel="icon" href="ds_logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --navy: #0E1F3D;
-    --blue: #2E6BFF;
-    --blue-ink: #1C4FD1;
-    --sky: #E9F0FF;
+    --navy: #1B355F;
+    --blue: #1493C9;
+    --blue-ink: #0F6F99;
+    --sky: #E4F2FA;
+    --ice: #B7D9EA;
     --paper: #F6F7FB;
     --surface: #FFFFFF;
     --ink: #12192B;
@@ -32,19 +33,20 @@
   button { font: inherit; cursor: pointer; }
   :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
   .hidden { display: none !important; }
-  .logo { height: 34px; width: auto; display: block; }
-  .logo-txt { font-family: var(--display); font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
-  .brandside .logo-txt { color: #fff; position: relative; z-index: 1; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+  .brand img { height: 34px; width: 34px; display: block; }
+  .brand span { font-family: var(--display); font-weight: 800; font-size: 19px; letter-spacing: -0.02em; }
+  .brandside .brand { color: #fff; position: relative; z-index: 1; }
+  .brandside .brand img { height: 44px; width: 44px; }
 
   /* ═══════════ Connexion ═══════════ */
   #login { min-height: 100vh; display: grid; grid-template-columns: 1.1fr 1fr; }
   .brandside { background: var(--navy); color: #fff; padding: 48px 56px; display: flex;
     flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
   .brandside::after { content: ""; position: absolute; right: -180px; bottom: -220px; width: 560px; height: 560px;
-    border-radius: 50%; background: radial-gradient(closest-side, rgba(46,107,255,.55), rgba(46,107,255,0)); }
-  .brandside .logo { height: 40px; filter: brightness(0) invert(1); position: relative; z-index: 1; }
+    border-radius: 50%; background: radial-gradient(closest-side, rgba(20,147,201,.6), rgba(20,147,201,0)); }
   .brandside h1 { font-size: clamp(30px, 4vw, 46px); font-weight: 800; line-height: 1.1; max-width: 12ch; position: relative; z-index: 1; }
-  .brandside p { font-size: 17px; color: #C9D4EA; max-width: 40ch; margin: 18px 0 0; position: relative; z-index: 1; }
+  .brandside p { font-size: 17px; color: var(--ice); max-width: 40ch; margin: 18px 0 0; position: relative; z-index: 1; }
   .brandside .foot { font-size: 13px; color: #8FA3C8; position: relative; z-index: 1; }
   .formside { display: grid; place-items: center; padding: 40px 24px; }
   .form { width: 100%; max-width: 380px; }
@@ -53,7 +55,7 @@
   label { display: block; font-size: 14px; font-weight: 600; margin: 16px 0 6px; }
   input { width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
     font: inherit; background: #fff; }
-  input:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(46,107,255,.12); }
+  input:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(20,147,201,.15); }
   .btn { width: 100%; margin-top: 24px; padding: 13px; border: 0; border-radius: 10px;
     background: var(--blue); color: #fff; font-weight: 600; font-size: 16px; }
   .btn:hover { background: var(--blue-ink); }
@@ -71,15 +73,15 @@
   .who button { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; color: var(--ink); }
   .who button:hover { border-color: var(--ink); }
 
-  .hero { background: var(--navy); color: #fff; padding: 36px 32px 48px; }
+  .hero { background: var(--navy) radial-gradient(circle at 92% 0%, rgba(20,147,201,.45), transparent 42%); color: #fff; padding: 36px 32px 48px; }
   .hero .in { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end; }
   .hero h1 { font-size: clamp(26px, 3vw, 36px); font-weight: 800; }
-  .hero p { margin: 8px 0 0; color: #C9D4EA; }
+  .hero p { margin: 8px 0 0; color: var(--ice); }
   .resume { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: var(--r);
     padding: 14px 18px; color: #fff; text-align: left; display: flex; gap: 14px; align-items: center; max-width: 400px; }
   .resume:hover { background: rgba(255,255,255,.14); }
   .resume .play { width: 40px; height: 40px; border-radius: 50%; background: var(--blue); display: grid; place-items: center; flex: none; }
-  .resume small { display: block; color: #C9D4EA; font-size: 12px; }
+  .resume small { display: block; color: var(--ice); font-size: 12px; }
   .resume b { font-weight: 600; font-size: 15px; }
 
   .wrap { max-width: 1120px; margin: -24px auto 60px; padding: 0 32px; display: grid; grid-template-columns: 300px 1fr; gap: 28px; }
@@ -157,7 +159,7 @@
 <!-- ═══════════ Connexion ═══════════ -->
 <section id="login">
   <div class="brandside">
-    <img class="logo" src="https://cdn.prod.website-files.com/68dbfb6770149c725a7a99b4/68dbfcd28181fd6d12b140ac_logo.avif" alt="DataSuits" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'logo-txt',textContent:'DataSuits'}))">
+    <div class="brand"><img src="ds_logo.png" alt=""><span>DataSuits</span></div>
     <div>
       <h1>Tes classes virtuelles, à revoir quand tu veux.</h1>
       <p>Tous les replays de ta formation, classés par module, accessibles depuis n'importe quel appareil.</p>
@@ -171,7 +173,7 @@
       <label for="email">Identifiant</label>
       <input id="email" type="email" autocomplete="username" placeholder="prenom.nom@datasuits.fr" inputmode="email">
       <label for="password">Mot de passe</label>
-      <input id="password" type="password" autocomplete="current-password" placeholder="Prenom.Pxxxx.xxxxx">
+      <input id="password" type="password" autocomplete="current-password" placeholder="Prenom.P0426.xxxxx">
       <button class="btn" id="submit">Ouvrir mes replays</button>
       <div class="error hidden" id="login-error"></div>
       <div class="hint">Mot de passe perdu ? Demande-le dans ta room Slack, l'équipe t'en génère un nouveau.</div>
@@ -182,7 +184,7 @@
 <!-- ═══════════ Bibliothèque ═══════════ -->
 <div id="library" class="hidden">
   <header>
-    <img class="logo" src="https://cdn.prod.website-files.com/68dbfb6770149c725a7a99b4/68dbfcd28181fd6d12b140ac_logo.avif" alt="DataSuits" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'logo-txt',textContent:'DataSuits'}))">
+    <div class="brand"><img src="ds_logo.png" alt=""><span>DataSuits</span></div>
     <div class="who"><span id="who-name"></span><button id="logout">Se déconnecter</button></div>
   </header>
 
@@ -233,8 +235,8 @@
   }
   const sb = supabase.createClient(PORTAIL.url, PORTAIL.anon);
   const ORDRE = ["Module 1", "Module 2", "Module 3", "Module 4", "Module 5", "Module 6", "Module 7", "Projet Final", "Autre"];
-  const COULEURS = { "Module 1": "#2E6BFF", "Module 2": "#7A5AF8", "Module 3": "#0E9F8A", "Module 4": "#F0731A",
-                     "Module 5": "#D6338F", "Module 6": "#1D8FB5", "Module 7": "#6B7A2D", "Projet Final": "#0E1F3D", "Autre": "#667085" };
+  const COULEURS = { "Module 1": "#1493C9", "Module 2": "#7A5AF8", "Module 3": "#0E9F8A", "Module 4": "#F0731A",
+                     "Module 5": "#D6338F", "Module 6": "#1D8FB5", "Module 7": "#6B7A2D", "Projet Final": "#1B355F", "Autre": "#667085" };
   let replays = [], vus = new Set(), moduleActif = null, moi = null, requete = "";
 
   /* ── connexion ── */
