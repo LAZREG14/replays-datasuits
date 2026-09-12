@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Replays · DataSuits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F3F5F9;
+    --surface: #FFFFFF;
+    --ink: #16213E;
+    --muted: #6B7280;
+    --line: #DDE2EC;
+    --accent: #5B4BEA;
+    --accent-ink: #2E23A3;
+    --seen: #0F9D8A;
+    --danger: #B42318;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "Manrope", system-ui, sans-serif; font-size: 16px; line-height: 1.5; }
+  a { color: inherit; }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .hidden { display: none !important; }
+
+  /* ── En-tête ── */
+  header { display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 28px; border-bottom: 1px solid var(--line); background: var(--surface); }
+  .brand { font-weight: 800; letter-spacing: -0.02em; font-size: 18px; }
+  .brand span { color: var(--accent); }
+  .who { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 14px; }
+  .who button { background: none; border: 1px solid var(--line); border-radius: 999px;
+    padding: 6px 14px; color: var(--ink); }
+  .who button:hover { border-color: var(--ink); }
+
+  /* ── Connexion ── */
+  #login { min-height: calc(100vh - 66px); display: grid; place-items: center; padding: 32px 20px; }
+  .panel { width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 36px 32px; }
+  .panel h1 { margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+  .panel p { margin: 0 0 24px; color: var(--muted); font-size: 15px; }
+  label { display: block; font-size: 14px; font-weight: 600; margin: 14px 0 6px; }
+  input { width: 100%; padding: 11px 13px; border: 1px solid var(--line); border-radius: var(--radius);
+    font: inherit; background: #FAFBFD; }
+  input:focus { border-color: var(--accent); background: #fff; }
+  .btn { width: 100%; margin-top: 22px; padding: 12px; border: 0; border-radius: var(--radius);
+    background: var(--accent); color: #fff; font-weight: 700; }
+  .btn:hover { background: var(--accent-ink); }
+  .btn[disabled] { opacity: .6; cursor: wait; }
+  .error { margin-top: 14px; padding: 10px 12px; border-radius: var(--radius);
+    background: #FEF3F2; color: var(--danger); font-size: 14px; }
+  .hint { margin-top: 18px; font-size: 13px; color: var(--muted); }
+
+  /* ── Bibliothèque ── */
+  #library { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 66px); }
+  nav { border-right: 1px solid var(--line); padding: 28px 20px; background: var(--surface); }
+  nav h2 { margin: 0 0 14px 10px; font-size: 13px; font-weight: 700; color: var(--muted); }
+  .mod { display: flex; align-items: center; justify-content: space-between; width: 100%;
+    background: none; border: 0; border-radius: var(--radius); padding: 10px 12px; text-align: left;
+    color: var(--ink); font-weight: 600; }
+  .mod:hover { background: var(--paper); }
+  .mod.active { background: var(--accent); color: #fff; }
+  .mod .count { font-size: 13px; font-weight: 500; opacity: .75; }
+  main { padding: 32px 40px; max-width: 860px; }
+  main h1 { margin: 0 0 4px; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+  main .sub { margin: 0 0 26px; color: var(--muted); }
+  .replay { display: grid; grid-template-columns: 22px 1fr auto; gap: 16px; align-items: center;
+    width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px 18px; margin-bottom: 10px; text-align: left; color: var(--ink); }
+  .replay:hover { border-color: var(--accent); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--line); }
+  .replay.seen .dot { background: var(--seen); border-color: var(--seen); }
+  .replay .title { font-weight: 700; }
+  .replay .meta { font-size: 13px; color: var(--muted); }
+  .replay .go { font-size: 14px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+  .empty { padding: 40px 0; color: var(--muted); }
+  .note { margin-top: 30px; font-size: 13px; color: var(--muted); max-width: 60ch; }
+
+  @media (max-width: 760px) {
+    #library { grid-template-columns: 1fr; }
+    nav { border-right: 0; border-bottom: 1px solid var(--line); padding: 16px; display: flex;
+      gap: 6px; overflow-x: auto; }
+    nav h2 { display: none; }
+    .mod { white-space: nowrap; }
+    .mod .count { display: none; }
+    main { padding: 22px 18px; }
+    .replay .go { display: none; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .replay, .mod, .btn { transition: background-color .12s, border-color .12s; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">DataSuits <span>Replays</span></div>
+  <div class="who hidden" id="who"><span id="who-name"></span><button id="logout">Se déconnecter</button></div>
+</header>
+
+<!-- ─────────────── Connexion ─────────────── -->
+<section id="login">
+  <div class="panel">
+    <h1>Tes replays de classes virtuelles</h1>
+    <p>Connecte-toi avec l'identifiant et le mot de passe reçus sur Slack.</p>
+    <label for="email">Identifiant</label>
+    <input id="email" type="email" autocomplete="username" placeholder="prenom.nom@datasuits.fr" inputmode="email">
+    <label for="password">Mot de passe</label>
+    <input id="password" type="password" autocomplete="current-password" placeholder="Prenom.P0426.xxxxx">
+    <button class="btn" id="submit">Ouvrir mes replays</button>
+    <div class="error hidden" id="login-error"></div>
+    <div class="hint">Mot de passe perdu ? Demande-le dans ta room Slack, l'équipe t'en génère un nouveau.</div>
+  </div>
+</section>
+
+<!-- ─────────────── Bibliothèque ─────────────── -->
+<section id="library" class="hidden">
+  <nav>
+    <h2>Modules</h2>
+    <div id="modules"></div>
+  </nav>
+  <main>
+    <h1 id="module-title">Replays</h1>
+    <p class="sub" id="module-sub"></p>
+    <div id="replays"></div>
+    <p class="note">Les replays s'ouvrent dans le lecteur vidéo Microsoft, en lecture seule. Ils sont réservés aux apprenants DataSuits : merci de ne pas partager les liens.</p>
+  </main>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+(function () {
+  if (!window.PORTAIL || !PORTAIL.url || !PORTAIL.anon) {
+    document.getElementById("login-error").textContent = "Le fichier config.js est manquant ou incomplet.";
+    document.getElementById("login-error").classList.remove("hidden");
+    return;
+  }
+  const sb = supabase.createClient(PORTAIL.url, PORTAIL.anon);
+  const $ = (id) => document.getElementById(id);
+  const ORDRE = ["Module 1", "Module 2", "Module 3", "Module 4", "Module 5", "Module 6", "Module 7", "Projet Final", "Autre"];
+  let replays = [], vus = new Set(), moduleActif = null, moi = null;
+
+  // ── connexion ──
+  async function connecter() {
+    const email = $("email").value.trim().toLowerCase();
+    const password = $("password").value;
+    $("login-error").classList.add("hidden");
+    if (!email || !password) return montrerErreur("Renseigne ton identifiant et ton mot de passe.");
+    $("submit").disabled = true;
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    $("submit").disabled = false;
+    if (error) {
+      const m = (error.message || "").toLowerCase();
+      if (m.includes("banned") || m.includes("disabled")) return montrerErreur("Ton accès est désactivé. Contacte l'équipe DataSuits.");
+      if (m.includes("invalid")) return montrerErreur("Identifiant ou mot de passe incorrect. Vérifie les majuscules et les points.");
+      return montrerErreur("Connexion impossible pour le moment : " + error.message);
+    }
+    await ouvrir();
+  }
+  function montrerErreur(msg) { $("login-error").textContent = msg; $("login-error").classList.remove("hidden"); }
+
+  // ── bibliothèque ──
+  async function ouvrir() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    moi = session.user;
+    const [{ data: fiche }, { data: rows }, { data: lectures }] = await Promise.all([
+      sb.from("apprenants").select("nom,promo").eq("email", moi.email).maybeSingle(),
+      sb.from("replays").select("id,titre,module,date_cv,promo_origine,lien").eq("publie", true)
+        .order("date_cv", { ascending: true }),
+      sb.from("lectures").select("replay_id"),
+    ]);
+    $("who-name").textContent = fiche ? `${fiche.nom}${fiche.promo ? " · " + fiche.promo : ""}` : moi.email;
+    replays = rows || [];
+    vus = new Set((lectures || []).map((l) => l.replay_id));
+    $("login").classList.add("hidden");
+    $("library").classList.remove("hidden");
+    $("who").classList.remove("hidden");
+    dessinerModules();
+  }
+
+  function dessinerModules() {
+    const modules = ORDRE.filter((m) => replays.some((r) => r.module === m));
+    const nav = $("modules"); nav.innerHTML = "";
+    if (!modules.length) {
+      $("module-title").textContent = "Aucun replay pour l'instant";
+      $("module-sub").textContent = "Les enregistrements apparaîtront ici dès leur publication.";
+      $("replays").innerHTML = "";
+      return;
+    }
+    if (!moduleActif || !modules.includes(moduleActif)) moduleActif = modules[0];
+    modules.forEach((m) => {
+      const n = replays.filter((r) => r.module === m).length;
+      const b = document.createElement("button");
+      b.className = "mod" + (m === moduleActif ? " active" : "");
+      b.innerHTML = `<span>${m}</span><span class="count">${n} replay${n > 1 ? "s" : ""}</span>`;
+      b.onclick = () => { moduleActif = m; dessinerModules(); };
+      nav.appendChild(b);
+    });
+    dessinerReplays();
+  }
+
+  function dessinerReplays() {
+    const liste = replays.filter((r) => r.module === moduleActif);
+    $("module-title").textContent = moduleActif;
+    const restants = liste.filter((r) => !vus.has(r.id)).length;
+    $("module-sub").textContent = restants ? `${restants} replay${restants > 1 ? "s" : ""} pas encore ouvert${restants > 1 ? "s" : ""}` : "Tu as ouvert tous les replays de ce module.";
+    const box = $("replays"); box.innerHTML = "";
+    liste.forEach((r) => {
+      const b = document.createElement("button");
+      b.className = "replay" + (vus.has(r.id) ? " seen" : "");
+      const date = r.date_cv ? new Date(r.date_cv + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "";
+      b.innerHTML = `<span class="dot" aria-hidden="true"></span>
+        <span><span class="title">${echap(titreCourt(r.titre))}</span><br><span class="meta">${date}${r.promo_origine ? " · promo " + echap(r.promo_origine) : ""}</span></span>
+        <span class="go">Regarder</span>`;
+      b.onclick = () => regarder(r);
+      box.appendChild(b);
+    });
+  }
+
+  async function regarder(r) {
+    const fenetre = window.open("", "_blank", "noopener");   // ouverte tout de suite (anti-popup)
+    if (!vus.has(r.id)) {
+      vus.add(r.id);
+      sb.from("lectures").insert({ email: moi.email, replay_id: r.id }).then(() => {});
+      dessinerReplays();
+    }
+    if (fenetre) fenetre.location = r.lien; else window.location = r.lien;
+  }
+
+  function titreCourt(t) { return (t || "").replace(/^(Module \d+|Projet Final)\s*·\s*/i, ""); }
+  function echap(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+  // ── câblage ──
+  $("submit").onclick = connecter;
+  ["email", "password"].forEach((id) => $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") connecter(); }));
+  $("logout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+  ouvrir();
+})();
+</script>
+</body>
+</html>
