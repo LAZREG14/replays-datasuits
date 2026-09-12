@@ -1,9 +1,7 @@
 name: Portail replays
 
 on:
-  schedule:
-    - cron: "0 1 * * *"          # chaque nuit à 03:00 Paris (01:00 UTC)
-  workflow_dispatch:
+  workflow_dispatch:             # déclenchement manuel uniquement (bouton Run workflow)
     inputs:
       max_replays:
         description: "Nombre de replays « À traiter » à publier"
