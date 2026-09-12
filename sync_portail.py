@@ -491,6 +491,424 @@ def main():
 
 
 if __name__ == "__main__":
+    main()    "formation":   "color_mkqncm8p",   # non utilisé pour l'instant (En cours…)
+    "login":       "text_mm74tagg",
+    "mdp":         "text_mm74z276",
+    "reset":       "boolean_mm74ym3h",
+}
+FORMATION_APP = "Data Analyst"          # ce board = formation Data Analyst
+
+# Board « Replays CV »
+B_REP = 5104046423
+C_REP = {
+    "formation": "color_mm74ssrw",
+    "module":    "color_mm749w77",
+    "promo":     "text_mm74yp4q",
+    "date_cv":   "date_mm74jbph",
+    "lien":      "text_mm74v58z",
+    "statut":    "color_mm74apxd",
+    "duree":     "numeric_mm74d5y6",
+    "taille":    "numeric_mm74g7y6",
+    "purge":     "date_mm74ty7f",
+    "journal":   "long_text_mm74rpcs",
+}
+
+AUJOURDHUI = dt.date.today()
+MAINTENANT = dt.datetime.now().strftime("%d/%m/%Y %H:%M")
+
+
+def log(msg):
+    print(msg, flush=True)
+
+
+def fatal(msg):
+    log(f"❌ {msg}")
+    sys.exit(1)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  HTTP minimal (urllib pur)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def http(method, url, data=None, headers=None, timeout=120):
+    body = None
+    h = dict(headers or {})
+    if data is not None:
+        body = json.dumps(data).encode("utf-8")
+        h.setdefault("Content-Type", "application/json")
+    req = urllib.request.Request(url, data=body, method=method, headers=h)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            raw = r.read().decode("utf-8", "replace")
+            return json.loads(raw) if raw.strip() else None
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "replace")[:500]
+        raise RuntimeError(f"HTTP {e.code} sur {method} {url} : {detail}") from None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  monday
+# ─────────────────────────────────────────────────────────────────────────────
+
+def monday(query, variables=None):
+    r = http("POST", "https://api.monday.com/v2",
+             {"query": query, "variables": variables or {}},
+             {"Authorization": MONDAY_TOKEN})
+    if r is None or r.get("errors"):
+        raise RuntimeError(f"monday : {json.dumps(r, ensure_ascii=False)[:500]}")
+    return r["data"]
+
+
+def monday_items(board_id, column_ids):
+    """Tous les éléments d'un board : id, nom, groupe, valeurs de colonnes."""
+    items, cursor = [], None
+    while True:
+        q = """
+        query($b:[ID!], $c:[String!], $cur:String) {
+          boards(ids:$b) { items_page(limit:200, cursor:$cur) {
+            cursor items { id name group { title }
+              column_values(ids:$c) { id text value } } } } }"""
+        d = monday(q, {"b": [str(board_id)], "c": column_ids, "cur": cursor})
+        page = d["boards"][0]["items_page"]
+        for it in page["items"]:
+            vals = {cv["id"]: (cv["text"] or "").strip() for cv in it["column_values"]}
+            raw = {cv["id"]: cv["value"] for cv in it["column_values"]}
+            items.append({"id": it["id"], "name": it["name"].strip(),
+                          "groupe": it["group"]["title"], "v": vals, "raw": raw})
+        cursor = page["cursor"]
+        if not cursor:
+            return items
+
+
+def monday_update(board_id, item_id, values):
+    if DRY_RUN:
+        log(f"   (dry-run) monday {item_id} ← {json.dumps(values, ensure_ascii=False)}")
+        return
+    q = """mutation($b:ID!, $i:ID!, $v:JSON!) {
+             change_multiple_column_values(board_id:$b, item_id:$i, column_values:$v) { id } }"""
+    monday(q, {"b": str(board_id), "i": str(item_id), "v": json.dumps(values)})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Supabase (REST + Auth admin, clé service)
+# ─────────────────────────────────────────────────────────────────────────────
+
+SB_H = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+
+
+def sb_select(table, params):
+    url = f"{SUPABASE_URL}/rest/v1/{table}?{urllib.parse.urlencode(params)}"
+    return http("GET", url, headers=SB_H) or []
+
+
+def sb_upsert(table, rows, on_conflict):
+    if DRY_RUN:
+        log(f"   (dry-run) supabase upsert {table} × {len(rows)}")
+        return
+    url = f"{SUPABASE_URL}/rest/v1/{table}?on_conflict={on_conflict}"
+    http("POST", url, rows, {**SB_H, "Prefer": "resolution=merge-duplicates,return=minimal"})
+
+
+def sb_auth_create(email, password, meta):
+    if DRY_RUN:
+        return "dry-run-uid"
+    r = http("POST", f"{SUPABASE_URL}/auth/v1/admin/users",
+             {"email": email, "password": password, "email_confirm": True,
+              "user_metadata": meta}, SB_H)
+    return r["id"]
+
+
+def sb_auth_update(uid, payload):
+    if DRY_RUN:
+        return
+    http("PUT", f"{SUPABASE_URL}/auth/v1/admin/users/{uid}", payload, SB_H)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Identifiants et mots de passe
+# ─────────────────────────────────────────────────────────────────────────────
+
+def ascii_fold(s):
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
+
+
+def fabriquer_login(nom_complet, deja_pris):
+    mots = [m for m in re.split(r"\s+", nom_complet.strip()) if m]
+    if not mots:
+        return None
+    prenom = ascii_fold(mots[0])
+    nom = ascii_fold(mots[-1]) if len(mots) > 1 else "x"
+    base = f"{prenom}.{nom}"
+    login, n = f"{base}@{LOGIN_DOMAIN}", 2
+    while login in deja_pris:
+        login, n = f"{base}{n}@{LOGIN_DOMAIN}", n + 1
+    deja_pris.add(login)
+    return login
+
+
+ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"   # sans 0/O, 1/l/i : lisible sur Slack
+
+
+def fabriquer_mdp(nom_complet, promo):
+    prenom = re.split(r"\s+", nom_complet.strip())[0]
+    prenom = "".join(c for c in unicodedata.normalize("NFKD", prenom)
+                     if not unicodedata.combining(c))
+    prenom = re.sub(r"[^A-Za-z]", "", prenom).capitalize() or "Ds"
+    alea = "".join(secrets.choice(ALPHABET) for _ in range(5))
+    return f"{prenom}.{promo or 'DS'}.{alea}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  1) APPRENANTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def sync_apprenants():
+    log("\n══ 1. Apprenants ══")
+    items = monday_items(B_APP, list(C_APP.values()))
+    existants = {r["monday_item_id"]: r
+                 for r in sb_select("apprenants", {"select": "monday_item_id,email,auth_uid,actif"})}
+    logins_pris = {r["email"] for r in existants.values()}
+    logins_pris |= {it["v"][C_APP["login"]].lower() for it in items if it["v"][C_APP["login"]]}
+
+    crees = resets = coupes = 0
+    rows = []
+    for it in items:
+        v = it["v"]
+        eligible = bool(v[C_APP["slack"]])
+        if not eligible:
+            continue
+        actif = v[C_APP["statut"]] != "Abandon"
+        deja = existants.get(it["id"])
+        login = v[C_APP["login"]].lower() or (deja and deja["email"])
+        reset = v[C_APP["reset"]] == "v" or v[C_APP["reset"]].lower() in ("true", "checked", "✓")
+
+        try:
+            if not login:
+                # ── nouveau compte (seulement si l'apprenant est actif) ──
+                if not actif:
+                    continue
+                login = fabriquer_login(it["name"], logins_pris)
+                mdp = fabriquer_mdp(it["name"], it["groupe"])
+                rows_now = [{"monday_item_id": it["id"], "email": login, "nom": it["name"],
+                             "formation": FORMATION_APP, "promo": it["groupe"],
+                             "email_perso": v[C_APP["email_perso"]].lower() or None,
+                             "slack": v[C_APP["slack"]], "actif": actif,
+                             "maj_le": dt.datetime.utcnow().isoformat()}]
+                sb_upsert("apprenants", rows_now, "monday_item_id")   # avant auth (garde-fou)
+                uid = sb_auth_create(login, mdp, {"nom": it["name"], "promo": it["groupe"],
+                                                   "formation": FORMATION_APP})
+                sb_upsert("apprenants", [{"monday_item_id": it["id"], "auth_uid": uid,
+                                          "email": login, "nom": it["name"],
+                                          "formation": FORMATION_APP}], "monday_item_id")
+                monday_update(B_APP, it["id"], {C_APP["login"]: login, C_APP["mdp"]: mdp})
+                log(f"   ✨ {it['name']} ({it['groupe']}) → {login}")
+                crees += 1
+                continue
+
+            # ── compte existant : mise à jour de la fiche ──
+            rows.append({"monday_item_id": it["id"], "email": login, "nom": it["name"],
+                         "formation": FORMATION_APP, "promo": it["groupe"],
+                         "email_perso": v[C_APP["email_perso"]].lower() or None,
+                         "slack": v[C_APP["slack"]], "actif": actif,
+                         "maj_le": dt.datetime.utcnow().isoformat()})
+            uid = deja and deja.get("auth_uid")
+
+            if reset and uid:
+                mdp = fabriquer_mdp(it["name"], it["groupe"])
+                sb_auth_update(uid, {"password": mdp})
+                monday_update(B_APP, it["id"], {C_APP["mdp"]: mdp, C_APP["reset"]: {"checked": "false"}})
+                log(f"   🔑 {it['name']} : nouveau mot de passe")
+                resets += 1
+
+            if uid and deja is not None and deja["actif"] != actif:
+                sb_auth_update(uid, {"ban_duration": "none" if actif else "876600h"})
+                log(f"   {'🔓' if actif else '⛔'} {it['name']} : accès {'rétabli' if actif else 'coupé'}")
+                if not actif:
+                    coupes += 1
+        except Exception as e:
+            log(f"   ⚠️ {it['name']} : {e}")
+
+    if rows:
+        sb_upsert("apprenants", rows, "monday_item_id")
+    log(f"   → {len(rows) + crees} apprenants synchronisés · {crees} comptes créés · "
+        f"{resets} mots de passe régénérés · {coupes} accès coupés")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  2) REPLAYS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def r2_client():
+    import boto3  # installé par le workflow
+    return boto3.client("s3", endpoint_url=R2_ENDPOINT,
+                        aws_access_key_id=R2_ACCESS_KEY,
+                        aws_secret_access_key=R2_SECRET_KEY, region_name="auto")
+
+
+def lien_telechargement(lien):
+    """Lien de partage SharePoint → URL de téléchargement direct."""
+    lien = lien.strip()
+    lien = re.sub(r"[&?]nav=[^&]*", "", lien)
+    sep = "&" if "?" in lien else "?"
+    return f"{lien}{sep}download=1"
+
+
+def telecharger(url, dest):
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=60) as r, open(dest, "wb") as f:
+        ctype = r.headers.get("Content-Type", "")
+        if "text/html" in ctype:
+            raise RuntimeError("SharePoint renvoie une page web au lieu du fichier : "
+                               "le lien n'est pas en « Toute personne disposant du lien », "
+                               "ou le téléchargement est bloqué.")
+        shutil.copyfileobj(r, f, length=1024 * 1024)
+    return os.path.getsize(dest)
+
+
+def ffprobe(path):
+    out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0",
+                          "-show_entries", "stream=height:format=duration",
+                          "-of", "json", path], capture_output=True, text=True, check=True).stdout
+    j = json.loads(out)
+    duree = float(j.get("format", {}).get("duration") or 0)
+    hauteur = int((j.get("streams") or [{}])[0].get("height") or 0)
+    return duree, hauteur
+
+
+def compresser(src, dst):
+    subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", src,
+                    "-vf", f"scale=-2:'min({HAUTEUR_MAX},ih)'",
+                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "27",
+                    "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", dst], check=True)
+
+
+def publier_replay(it, s3):
+    v = it["v"]
+    titre = it["name"]
+    log(f"\n   ▶ {titre}")
+    if not v[C_REP["lien"]]:
+        raise RuntimeError("colonne « Lien enregistrement » vide")
+    monday_update(B_REP, it["id"], {C_REP["statut"]: {"label": "En cours"}})
+
+    with tempfile.TemporaryDirectory() as tmp:
+        brut, fin = os.path.join(tmp, "brut.mp4"), os.path.join(tmp, "final.mp4")
+        taille_brute = telecharger(lien_telechargement(v[C_REP["lien"]]), brut)
+        duree, hauteur = ffprobe(brut)
+        log(f"     téléchargé {taille_brute/1e6:.0f} Mo · {duree/60:.0f} min · {hauteur}p")
+
+        if hauteur > HAUTEUR_MAX or taille_brute > duree / 3600 * 450e6:
+            log("     compression 720p…")
+            compresser(brut, fin)
+        else:
+            os.rename(brut, fin)
+        taille = os.path.getsize(fin)
+        log(f"     prêt : {taille/1e6:.0f} Mo")
+
+        key = f"data-analyst/{it['id']}.mp4"
+        if DRY_RUN:
+            log(f"     (dry-run) upload R2 → {key}")
+        else:
+            s3.upload_file(fin, R2_BUCKET, key, ExtraArgs={"ContentType": "video/mp4"})
+            log(f"     déposé dans R2 → {key}")
+
+    date_cv = v[C_REP["date_cv"]] or None
+    purge = None
+    if date_cv:
+        d = dt.date.fromisoformat(date_cv)
+        mois = d.month - 1 + CONSERVATION_MOIS
+        purge = d.replace(year=d.year + mois // 12, month=mois % 12 + 1, day=1)
+
+    sb_upsert("replays", [{
+        "monday_item_id": it["id"], "titre": titre,
+        "formation": v[C_REP["formation"]] or FORMATION_APP,
+        "module": v[C_REP["module"]] or "Autre",
+        "promo_origine": v[C_REP["promo"]] or None, "date_cv": date_cv,
+        "duree_min": round(duree / 60), "taille_mo": round(taille / 1e6),
+        "r2_key": key, "publie": True,
+        "purge_le": purge.isoformat() if purge else None,
+        "maj_le": dt.datetime.utcnow().isoformat(),
+    }], "monday_item_id")
+
+    monday_update(B_REP, it["id"], {
+        C_REP["statut"]: {"label": "Publié"},
+        C_REP["duree"]: str(round(duree / 60)),
+        C_REP["taille"]: str(round(taille / 1e6)),
+        C_REP["purge"]: {"date": purge.isoformat()} if purge else None,
+        C_REP["journal"]: f"✅ Publié le {MAINTENANT} · {round(duree/60)} min · "
+                          f"{round(taille/1e6)} Mo. Tu peux maintenant retirer le lien "
+                          f"de partage SharePoint (le fichier est dans le coffre).",
+    })
+    log("     ✅ publié")
+
+
+def archiver_replay(it, s3, motif):
+    key = f"data-analyst/{it['id']}.mp4"
+    if not DRY_RUN:
+        try:
+            s3.delete_object(Bucket=R2_BUCKET, Key=key)
+        except Exception as e:
+            log(f"     (R2) {e}")
+    sb_upsert("replays", [{"monday_item_id": it["id"], "titre": it["name"],
+                           "formation": it["v"][C_REP["formation"]] or FORMATION_APP,
+                           "module": it["v"][C_REP["module"]] or "Autre",
+                           "publie": False, "r2_key": None,
+                           "maj_le": dt.datetime.utcnow().isoformat()}], "monday_item_id")
+    monday_update(B_REP, it["id"], {
+        C_REP["statut"]: {"label": "Archivé"},
+        C_REP["journal"]: f"📦 Archivé le {MAINTENANT} ({motif}) : retiré du portail, "
+                          f"fichier supprimé du coffre.",
+    })
+    log(f"   📦 {it['name']} archivé ({motif})")
+
+
+def sync_replays():
+    log("\n══ 2. Replays ══")
+    items = monday_items(B_REP, list(C_REP.values()))
+    publies = {r["monday_item_id"]: r for r in sb_select("replays", {"select": "monday_item_id,publie"})}
+    s3 = r2_client()
+
+    a_traiter = [it for it in items if it["v"][C_REP["statut"]] == "À traiter"]
+    log(f"   {len(a_traiter)} replay(s) à traiter, {MAX_REPLAYS} max pour cette exécution")
+    for it in a_traiter[:MAX_REPLAYS]:
+        try:
+            publier_replay(it, s3)
+        except Exception as e:
+            log(f"     ❌ {e}")
+            monday_update(B_REP, it["id"], {
+                C_REP["statut"]: {"label": "Erreur"},
+                C_REP["journal"]: f"❌ {MAINTENANT} — {str(e)[:900]}\n"
+                                  f"Corrige puis remets le statut « À traiter ».",
+            })
+
+    for it in items:
+        st = it["v"][C_REP["statut"]]
+        purge = it["v"][C_REP["purge"]]
+        deja_publie = publies.get(it["id"], {}).get("publie")
+        if st == "Archivé" and deja_publie:
+            archiver_replay(it, s3, "archivage manuel")
+        elif st == "Publié" and purge and dt.date.fromisoformat(purge) <= AUJOURDHUI:
+            archiver_replay(it, s3, "date de purge atteinte")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Main
+# ─────────────────────────────────────────────────────────────────────────────
+
+def main():
+    for nom, val in [("MONDAY_TOKEN", MONDAY_TOKEN), ("SUPABASE_URL", SUPABASE_URL),
+                     ("SUPABASE_SERVICE_KEY", SUPABASE_KEY), ("R2_ACCESS_KEY_ID", R2_ACCESS_KEY),
+                     ("R2_SECRET_ACCESS_KEY", R2_SECRET_KEY), ("R2_ENDPOINT", R2_ENDPOINT)]:
+        if not val:
+            fatal(f"secret manquant : {nom}")
+    log(f"🤖 Portail replays — {MAINTENANT}" + ("  [DRY-RUN : aucune écriture]" if DRY_RUN else ""))
+    sync_apprenants()
+    sync_replays()
+    log("\n🏁 Terminé.")
+
+
+if __name__ == "__main__":
     main()    "login":       "text_mm74tagg",
     "mdp":         "text_mm74z276",
     "reset":       "boolean_mm74ym3h",
