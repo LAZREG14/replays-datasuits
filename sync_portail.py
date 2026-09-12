@@ -476,6 +476,7 @@ def sync_replays():
     s3 = r2_client()
 
     a_traiter = [it for it in items if it["v"][C_REP["statut"]] == "À traiter"]
+    a_traiter.sort(key=lambda it: (it["v"][C_REP["date_cv"]] or "9999", it["name"]))  # plus ancien d'abord
     log(f"   {len(a_traiter)} replay(s) à traiter, {MAX_REPLAYS} max pour cette exécution")
     for it in a_traiter[:MAX_REPLAYS]:
         try:
